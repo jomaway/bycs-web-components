@@ -54,13 +54,55 @@ class TimerSimulator {
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-uppercase text-secondary">Compare A</label>
-                                    <input type="number" class="compareAInput form-control form-control-sm shadow-none" min="0" max="63" value="16">
+                                    <input type="number" class="compareAInput form-control form-control-sm shadow-none" min="0" max="63" value="32">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-uppercase text-secondary">Compare B</label>
-                                    <input type="number" class="compareBInput form-control form-control-sm shadow-none" min="0" max="63" value="48">
+                                    <input type="number" class="compareBInput form-control form-control-sm shadow-none" min="0" max="63" value="42">
                                 </div>
                             </div>
+
+                            <details class="mb-3">
+                                <summary class="small fw-bold text-uppercase text-secondary" style="cursor: pointer;">Advanced: Compare Events</summary>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-uppercase text-secondary">Cmp A Event</label>
+                                        <select class="compareAActionSelect form-select form-select-sm shadow-none">
+                                            <option value="none">None</option>
+                                            <option value="set">Set GPIO High</option>
+                                            <option value="clear">Set GPIO Low</option>
+                                            <option value="toggle" selected>Toggle GPIO</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-uppercase text-secondary">Cmp B Event</label>
+                                        <select class="compareBActionSelect form-select form-select-sm shadow-none">
+                                            <option value="none" selected>None</option>
+                                            <option value="set">Set GPIO High</option>
+                                            <option value="clear">Set GPIO Low</option>
+                                            <option value="toggle">Toggle GPIO</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-bold text-uppercase text-secondary">Overflow Event</label>
+                                        <select class="overflowActionSelect form-select form-select-sm shadow-none">
+                                            <option value="none" selected>None</option>
+                                            <option value="set">Set GPIO High</option>
+                                            <option value="clear">Set GPIO Low</option>
+                                            <option value="toggle">Toggle GPIO</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-check form-switch mt-3">
+                                    <input class="form-check-input pauseOnCompareToggle" type="checkbox" role="switch">
+                                    <label class="form-check-label small fw-semibold text-secondary">Pause on compare event</label>
+                                </div>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input showGpioSignalToggle" type="checkbox" role="switch">
+                                    <label class="form-check-label small fw-semibold text-secondary">Show GPIO signal in output</label>
+                                </div>
+                            </details>
 
                             <div class="d-flex gap-2 mb-3">
                                 <button type="button" class="toggleRunBtn btn btn-sm btn-primary">Pause</button>
@@ -92,6 +134,10 @@ class TimerSimulator {
                                         <span class="compareBHitsDisplay fw-bold text-dark" style="font-size: 0.85rem;">0</span>
                                     </div>
                                 </div>
+                                <div class="text-center mt-2 pt-2 border-top">
+                                    <span class="d-block text-muted small text-uppercase" style="font-size: 0.62rem;">GPIO Output</span>
+                                    <span class="gpioStateDisplay fw-bold text-dark" style="font-size: 0.85rem;">LOW</span>
+                                </div>
                             </div>
                         </div>
 
@@ -108,6 +154,7 @@ class TimerSimulator {
                             <div class="d-flex flex-wrap justify-content-between gap-2 mt-2 text-muted small px-1" style="font-size: 0.78rem;">
                                 <span>Orange markers: overflow / turn-around events</span>
                                 <span>Green dots: Compare A, Pink dots: Compare B</span>
+                                <span class="gpioLegendItem">Amber stepped line: GPIO output</span>
                             </div>
                         </div>
 
@@ -127,6 +174,11 @@ class TimerSimulator {
         const tickRateRange = root.querySelector('.tickRateRange');
         const compareAInput = root.querySelector('.compareAInput');
         const compareBInput = root.querySelector('.compareBInput');
+        const compareAActionSelect = root.querySelector('.compareAActionSelect');
+        const compareBActionSelect = root.querySelector('.compareBActionSelect');
+        const overflowActionSelect = root.querySelector('.overflowActionSelect');
+        const pauseOnCompareToggle = root.querySelector('.pauseOnCompareToggle');
+        const showGpioSignalToggle = root.querySelector('.showGpioSignalToggle');
         const toggleRunBtn = root.querySelector('.toggleRunBtn');
         const resetBtn = root.querySelector('.resetBtn');
 
@@ -136,6 +188,8 @@ class TimerSimulator {
         const overflowDisplay = root.querySelector('.overflowDisplay');
         const compareAHitsDisplay = root.querySelector('.compareAHitsDisplay');
         const compareBHitsDisplay = root.querySelector('.compareBHitsDisplay');
+        const gpioStateDisplay = root.querySelector('.gpioStateDisplay');
+        const gpioLegendItem = root.querySelector('.gpioLegendItem');
         const modeBadge = root.querySelector('.modeBadge');
 
         const canvas = root.querySelector('.timerCanvas');
@@ -148,6 +202,7 @@ class TimerSimulator {
             overflowCount: 0,
             compareAHits: 0,
             compareBHits: 0,
+            gpioState: false,
             isRunning: true,
             accumulator: 0,
             history: [],
@@ -156,6 +211,8 @@ class TimerSimulator {
         };
 
         const DEFAULT_CYCLE_SECONDS = 5;
+        const compareValueMemory = {};
+        let activeResolutionKey = bitWidthSelect.value;
 
         let lastFrameTime = performance.now();
 
@@ -173,6 +230,21 @@ class TimerSimulator {
         const getTop = () => {
             const bits = toInt(bitWidthSelect.value, 10);
             return Math.pow(2, bits) - 1;
+        };
+
+        const getDefaultCompareValues = (top) => {
+            return {
+                a: Math.round(top * (1 / 3)),
+                b: Math.round(top * (2 / 3))
+            };
+        };
+
+        const saveCompareValuesForResolution = (key, topOverride) => {
+            const top = topOverride || state.top || getTop();
+            compareValueMemory[key] = {
+                a: Math.min(Math.max(toInt(compareAInput.value, 0), 0), top),
+                b: Math.min(Math.max(toInt(compareBInput.value, 0), 0), top)
+            };
         };
 
         const getCycleSteps = () => {
@@ -237,19 +309,24 @@ class TimerSimulator {
             return Math.max(1, Math.ceil(ticksForTwoCycles / Math.max(historyCap, 1)));
         };
 
-        const clampCompareInputs = () => {
+        const clampCompareInputs = ({ restoreForResolution = false } = {}) => {
             state.top = getTop();
             compareAInput.max = String(state.top);
             compareBInput.max = String(state.top);
 
-            const defaultA = Math.floor(state.top * 0.25);
-            const defaultB = Math.floor(state.top * 0.75);
+            const key = bitWidthSelect.value;
+            const defaults = getDefaultCompareValues(state.top);
+            const saved = restoreForResolution ? compareValueMemory[key] : null;
 
-            const a = Math.min(Math.max(toInt(compareAInput.value, defaultA), 0), state.top);
-            const b = Math.min(Math.max(toInt(compareBInput.value, defaultB), 0), state.top);
+            const aSource = saved ? saved.a : defaults.a;
+            const bSource = saved ? saved.b : defaults.b;
+
+            const a = Math.min(Math.max(aSource, 0), state.top);
+            const b = Math.min(Math.max(bSource, 0), state.top);
 
             compareAInput.value = String(a);
             compareBInput.value = String(b);
+            compareValueMemory[key] = { a, b };
 
             state.counter = Math.min(Math.max(state.counter, 0), state.top);
             if (modeSelect.value === 'down' && state.counter === 0) {
@@ -265,8 +342,19 @@ class TimerSimulator {
             overflowDisplay.textContent = state.overflowCount.toLocaleString();
             compareAHitsDisplay.textContent = state.compareAHits.toLocaleString();
             compareBHitsDisplay.textContent = state.compareBHits.toLocaleString();
+            gpioStateDisplay.textContent = state.gpioState ? 'HIGH' : 'LOW';
             modeBadge.textContent = `Mode: ${modeLabelMap[mode]}`;
             toggleRunBtn.textContent = state.isRunning ? 'Pause' : 'Run';
+        };
+
+        const applyGpioAction = (action) => {
+            if (action === 'set') {
+                state.gpioState = true;
+            } else if (action === 'clear') {
+                state.gpioState = false;
+            } else if (action === 'toggle') {
+                state.gpioState = !state.gpioState;
+            }
         };
 
         const pushHistoryPoint = (entry) => {
@@ -315,11 +403,19 @@ class TimerSimulator {
             if (state.counter === compareA) {
                 state.compareAHits += 1;
                 event.compareA = true;
+                applyGpioAction(compareAActionSelect.value);
             }
             if (state.counter === compareB) {
                 state.compareBHits += 1;
                 event.compareB = true;
+                applyGpioAction(compareBActionSelect.value);
             }
+
+            if (event.overflow) {
+                applyGpioAction(overflowActionSelect.value);
+            }
+
+            event.gpio = state.gpioState;
 
             return event;
         };
@@ -379,6 +475,20 @@ class TimerSimulator {
             ctx.lineTo(width - padRight, yForValue(compareB));
             ctx.stroke();
 
+            const showGpioSignal = showGpioSignalToggle.checked;
+            const gpioBandTop = padTop + 6;
+            const gpioBandBottom = padTop + Math.min(38, Math.max(22, plotHeight * 0.2));
+            const gpioHighY = gpioBandTop + 4;
+            const gpioLowY = gpioBandBottom - 4;
+
+            if (showGpioSignal) {
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.1)';
+                ctx.fillRect(padLeft, gpioBandTop, plotWidth, gpioBandBottom - gpioBandTop);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+                ctx.font = '11px sans-serif';
+                ctx.fillText('GPIO', padLeft + 4, gpioBandTop + 10);
+            }
+
             const points = state.history;
             if (points.length > 1) {
                 const historyCap = getHistoryCapacity();
@@ -403,6 +513,25 @@ class TimerSimulator {
                 }
 
                 ctx.stroke();
+
+                if (showGpioSignal) {
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+
+                    let prevGpioY = points[0].gpio ? gpioHighY : gpioLowY;
+                    ctx.moveTo(padLeft, prevGpioY);
+
+                    for (let i = 1; i < points.length; i += 1) {
+                        const x = padLeft + i * stepX;
+                        const gpioY = points[i].gpio ? gpioHighY : gpioLowY;
+                        ctx.lineTo(x, prevGpioY);
+                        ctx.lineTo(x, gpioY);
+                        prevGpioY = gpioY;
+                    }
+
+                    ctx.stroke();
+                }
 
                 for (let i = 0; i < points.length; i += 1) {
                     const x = padLeft + i * stepX;
@@ -444,11 +573,12 @@ class TimerSimulator {
             state.overflowCount = 0;
             state.compareAHits = 0;
             state.compareBHits = 0;
+            state.gpioState = false;
             state.accumulator = 0;
             state.history = [];
             state.plotTickAccumulator = 0;
             state.pendingPlotEvent = { overflow: false, compareA: false, compareB: false };
-            pushHistoryPoint({ value: state.counter, overflow: false, compareA: false, compareB: false });
+            pushHistoryPoint({ value: state.counter, overflow: false, compareA: false, compareB: false, gpio: state.gpioState });
             updateText();
         };
 
@@ -482,10 +612,17 @@ class TimerSimulator {
                             value: state.counter,
                             overflow: state.pendingPlotEvent.overflow,
                             compareA: state.pendingPlotEvent.compareA,
-                            compareB: state.pendingPlotEvent.compareB
+                            compareB: state.pendingPlotEvent.compareB,
+                            gpio: state.gpioState
                         });
                         state.plotTickAccumulator = 0;
                         state.pendingPlotEvent = { overflow: false, compareA: false, compareB: false };
+                    }
+
+                    if (pauseOnCompareToggle.checked && (event.compareA || event.compareB)) {
+                        state.isRunning = false;
+                        state.accumulator = 0;
+                        break;
                     }
                 }
             }
@@ -496,7 +633,9 @@ class TimerSimulator {
         };
 
         bitWidthSelect.addEventListener('change', () => {
-            clampCompareInputs();
+            saveCompareValuesForResolution(activeResolutionKey, state.top);
+            activeResolutionKey = bitWidthSelect.value;
+            clampCompareInputs({ restoreForResolution: true });
             applyRecommendedTickRate();
             resetSimulation();
         });
@@ -512,15 +651,21 @@ class TimerSimulator {
 
         compareAInput.addEventListener('change', () => {
             compareAInput.value = String(Math.min(Math.max(toInt(compareAInput.value, 0), 0), state.top));
+            saveCompareValuesForResolution(activeResolutionKey, state.top);
             updateText();
         });
 
         compareBInput.addEventListener('change', () => {
             compareBInput.value = String(Math.min(Math.max(toInt(compareBInput.value, 0), 0), state.top));
+            saveCompareValuesForResolution(activeResolutionKey, state.top);
             updateText();
         });
 
         tickRateRange.addEventListener('input', updateText);
+
+        showGpioSignalToggle.addEventListener('change', () => {
+            gpioLegendItem.style.display = showGpioSignalToggle.checked ? '' : 'none';
+        });
 
         toggleRunBtn.addEventListener('click', () => {
             state.isRunning = !state.isRunning;
@@ -529,8 +674,9 @@ class TimerSimulator {
 
         resetBtn.addEventListener('click', resetSimulation);
 
-        clampCompareInputs();
+        clampCompareInputs({ restoreForResolution: true });
         applyRecommendedTickRate();
+        gpioLegendItem.style.display = showGpioSignalToggle.checked ? '' : 'none';
         resetSimulation();
         requestAnimationFrame(loop);
     }
