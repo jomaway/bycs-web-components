@@ -1,101 +1,108 @@
-class PwmSimulator extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
+class PwmSimulator {
+    constructor(container) {
+        this.container = container;
+        this.init();
+    }
 
-        this.shadowRoot.innerHTML = `
+    init() {
+        // Self-contained markup and styling injected into the standard div
+        this.container.innerHTML = `
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
             <style>
-                :host { display: block; font-family: inherit; margin-bottom: 2rem; }
-                canvas { display: block; width: 100%; height: 100%; }
+                .pwm-sim-wrapper { display: block; font-family: inherit; margin-bottom: 2rem; }
+                .pwm-sim-wrapper canvas { display: block; width: 100%; height: 100%; }
             </style>
-            <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
-                <div class="row g-4 align-items-center">
-                    
-                    <!-- Controls Column -->
-                    <div class="col-lg-5 border-end-lg pe-lg-4">
-                        <h4 class="h5 fw-semibold text-dark mb-3">PWM Configuration</h4>
+            <div class="pwm-sim-wrapper">
+                <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
+                    <div class="row g-4 align-items-center">
+                        
+                        <!-- Controls Column -->
+                        <div class="col-lg-5 border-end-lg pe-lg-4">
+                            <h4 class="h5 fw-semibold text-dark mb-3">PWM Configuration</h4>
 
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-secondary">Timer Resolution</label>
-                            <select id="bitWidthSelect" class="form-select form-select-sm shadow-none">
-                                <option value="8">8-bit (0 - 255 steps)</option>
-                                <option value="10" selected>10-bit (0 - 1023 steps)</option>
-                                <option value="12">12-bit (0 - 4095 steps)</option>
-                                <option value="16">16-bit (0 - 65535 steps)</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small fw-bold text-uppercase text-secondary mb-0">Frequency</label>
-                                <span id="freqValueDisplay" class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 fw-bold">1 kHz</span>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-uppercase text-secondary">Timer Resolution</label>
+                                <select class="bitWidthSelect form-select form-select-sm shadow-none">
+                                    <option value="8">8-bit (0 - 255 steps)</option>
+                                    <option value="10" selected>10-bit (0 - 1023 steps)</option>
+                                    <option value="12">12-bit (0 - 4095 steps)</option>
+                                    <option value="16">16-bit (0 - 65535 steps)</option>
+                                </select>
                             </div>
-                            <input type="range" class="form-range" id="freqRange" min="100" max="5000" step="100" value="1000">
-                        </div>
 
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small fw-bold text-uppercase text-secondary mb-0">Duty Cycle</label>
-                                <span id="dutyValueDisplay" class="badge bg-success bg-opacity-10 text-success px-2 py-1 fw-bold">50%</span>
-                            </div>
-                            <input type="range" class="form-range" id="dutyRange" min="0" max="100" step="1" value="50">
-                        </div>
-
-                        <div class="p-2 bg-light rounded-3 border">
-                            <div class="row text-center g-2">
-                                <div class="col-6 border-end">
-                                    <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Max Steps (TOP)</span>
-                                    <span id="maxStepsDisplay" class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">1023</span>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold text-uppercase text-secondary mb-0">Frequency</label>
+                                    <span class="freqValueDisplay badge bg-primary bg-opacity-10 text-primary px-2 py-1 fw-bold">1 kHz</span>
                                 </div>
-                                <div class="col-6">
-                                    <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Period Time</span>
-                                    <span id="periodDisplay" class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">1.00 ms</span>
+                                <input type="range" class="freqRange form-range" min="100" max="5000" step="100" value="1000">
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold text-uppercase text-secondary mb-0">Duty Cycle</label>
+                                    <span class="dutyValueDisplay badge bg-success bg-opacity-10 text-success px-2 py-1 fw-bold">50%</span>
+                                </div>
+                                <input type="range" class="dutyRange form-range" min="0" max="100" step="1" value="50">
+                            </div>
+
+                            <div class="p-2 bg-light rounded-3 border">
+                                <div class="row text-center g-2">
+                                    <div class="col-6 border-end">
+                                        <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Max Steps (TOP)</span>
+                                        <span class="maxStepsDisplay fw-bold text-dark mb-0" style="font-size: 0.9rem;">1023</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Period Time</span>
+                                        <span class="periodDisplay fw-bold text-dark mb-0" style="font-size: 0.9rem;">1.00 ms</span>
+                                    </div>
+                                </div>
+                                <div class="thresholdInfoText mt-2 pt-2 border-top text-muted text-center" style="font-size: 0.75rem;">
+                                    Signal goes HIGH at count: <strong>0</strong> and switches LOW at compare value: <strong>512</strong>
                                 </div>
                             </div>
-                            <div class="mt-2 pt-2 border-top text-muted text-center" style="font-size: 0.75rem;" id="thresholdInfoText">
-                                Signal goes HIGH at count: <strong>0</strong> and switches LOW at compare value: <strong>512</strong>
+                        </div>
+
+                        <!-- Visualization Column -->
+                        <div class="col-lg-7 ps-lg-4 mt-4 mt-lg-0">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h4 class="h6 fw-semibold text-dark mb-0">Signal Output</h4>
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-2 py-1" style="font-size: 0.75rem;">Live Moving Waveform</span>
+                            </div>
+
+                            <div class="rounded-4 p-2 shadow-inner position-relative overflow-hidden border" style="height: 220px; background-color: #0f172a; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 20px 20px;">
+                                <canvas class="pwmCanvas w-100 h-100 display-block"></canvas>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-2 text-muted small px-1" style="font-size: 0.8rem;">
+                                <span>● HIGH Level</span>
+                                <span>● LOW Level</span>
+                                <span class="onTimeDisplay">High Time: 0.50 ms</span>
                             </div>
                         </div>
+
                     </div>
-
-                    <!-- Visualization Column -->
-                    <div class="col-lg-7 ps-lg-4 mt-4 mt-lg-0">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h4 class="h6 fw-semibold text-dark mb-0">Signal Output</h4>
-                            <span class="badge bg-danger bg-opacity-10 text-danger px-2 py-1" style="font-size: 0.75rem;">Live Moving Waveform</span>
-                        </div>
-
-                        <div class="rounded-4 p-2 shadow-inner position-relative overflow-hidden border" style="height: 220px; background-color: #0f172a; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 20px 20px;">
-                            <canvas id="pwmCanvas" class="w-100 h-100 display-block"></canvas>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center mt-2 text-muted small px-1" style="font-size: 0.8rem;">
-                            <span>● HIGH Level</span>
-                            <span>● LOW Level</span>
-                            <span id="onTimeDisplay">High Time: 0.50 ms</span>
-                        </div>
-                    </div>
-
                 </div>
             </div>
         `;
+
+        this.setupLogic();
     }
 
-    connectedCallback() {
-        const shadow = this.shadowRoot;
-        const bitWidthSelect = shadow.getElementById('bitWidthSelect');
-        const freqRange = shadow.getElementById('freqRange');
-        const dutyRange = shadow.getElementById('dutyRange');
+    setupLogic() {
+        const root = this.container;
+        const bitWidthSelect = root.querySelector('.bitWidthSelect');
+        const freqRange = root.querySelector('.freqRange');
+        const dutyRange = root.querySelector('.dutyRange');
 
-        const freqValueDisplay = shadow.getElementById('freqValueDisplay');
-        const dutyValueDisplay = shadow.getElementById('dutyValueDisplay');
-        const maxStepsDisplay = shadow.getElementById('maxStepsDisplay');
-        const periodDisplay = shadow.getElementById('periodDisplay');
-        const onTimeDisplay = shadow.getElementById('onTimeDisplay');
-        const thresholdInfoText = shadow.getElementById('thresholdInfoText');
+        const freqValueDisplay = root.querySelector('.freqValueDisplay');
+        const dutyValueDisplay = root.querySelector('.dutyValueDisplay');
+        const maxStepsDisplay = root.querySelector('.maxStepsDisplay');
+        const periodDisplay = root.querySelector('.periodDisplay');
+        const onTimeDisplay = root.querySelector('.onTimeDisplay');
+        const thresholdInfoText = root.querySelector('.thresholdInfoText');
 
-        const canvas = shadow.getElementById('pwmCanvas');
+        const canvas = root.querySelector('.pwmCanvas');
         const ctx = canvas.getContext('2d');
 
         let startTime = performance.now();
@@ -219,4 +226,14 @@ class PwmSimulator extends HTMLElement {
     }
 }
 
-customElements.define('pwm-simulator', PwmSimulator);
+// Automatically find all placeholders on the page and initialize them
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.pwm-simulator-target').forEach(el => new PwmSimulator(el));
+});
+// Also run immediately in case the script loads after DOMContentLoaded
+document.querySelectorAll('.pwm-simulator-target').forEach(el => {
+    if (!el.dataset.initialized) {
+        el.dataset.initialized = "true";
+        new PwmSimulator(el);
+    }
+});
