@@ -10,6 +10,10 @@ class PwmSimulator {
             <style>
                 .pwm-sim-wrapper { display: block; font-family: inherit; margin-bottom: 2rem; }
                 .pwm-sim-wrapper canvas { display: block; width: 100%; height: 100%; }
+                .pwm-visual-box { height: 220px; }
+                @media (min-width: 992px) {
+                    .pwm-visual-box { height: 440px; }
+                }
             </style>
             <div class="pwm-sim-wrapper">
                 <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
@@ -85,7 +89,7 @@ class PwmSimulator {
                                 </div>
                             </div>
 
-                            <div class="rounded-4 p-2 shadow-inner position-relative overflow-hidden border" style="height: 220px; background-color: #0f172a; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 20px 20px;">
+                            <div class="pwm-visual-box rounded-4 p-2 shadow-inner position-relative overflow-hidden border" style="background-color: #0f172a; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 20px 20px;">
                                 <canvas class="pwmCanvas w-100 h-100 display-block"></canvas>
                             </div>
 
