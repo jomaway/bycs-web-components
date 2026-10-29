@@ -14,5 +14,5 @@ Open the Code view and add this snippet.
 <script src="https://cdn.jsdelivr.net/gh/jomaway/bycs-web-components@latest/components/pwm-simulator.js" defer></script>
 
 <!-- Add as many simulators as you want! -->
-<pwm-simulator></pwm-simulator>
+<div class="pwm-simulator-target"></div>
 ```
