@@ -7,7 +7,6 @@ class PwmSimulator {
     init() {
         // Self-contained markup and styling injected into the standard div
         this.container.innerHTML = `
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
             <style>
                 .pwm-sim-wrapper { display: block; font-family: inherit; margin-bottom: 2rem; }
                 .pwm-sim-wrapper canvas { display: block; width: 100%; height: 100%; }
@@ -19,16 +18,6 @@ class PwmSimulator {
                         <!-- Controls Column -->
                         <div class="col-lg-5 border-end-lg pe-lg-4">
                             <h4 class="h5 fw-semibold text-dark mb-3">PWM Configuration</h4>
-
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-uppercase text-secondary">Timer Resolution</label>
-                                <select class="bitWidthSelect form-select form-select-sm shadow-none">
-                                    <option value="8">8-bit (0 - 255 steps)</option>
-                                    <option value="10" selected>10-bit (0 - 1023 steps)</option>
-                                    <option value="12">12-bit (0 - 4095 steps)</option>
-                                    <option value="16">16-bit (0 - 65535 steps)</option>
-                                </select>
-                            </div>
 
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -49,18 +38,41 @@ class PwmSimulator {
                             <div class="p-2 bg-light rounded-3 border">
                                 <div class="row text-center g-2">
                                     <div class="col-6 border-end">
-                                        <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Max Steps (TOP)</span>
-                                        <span class="maxStepsDisplay fw-bold text-dark mb-0" style="font-size: 0.9rem;">1023</span>
-                                    </div>
-                                    <div class="col-6">
                                         <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Period Time</span>
                                         <span class="periodDisplay fw-bold text-dark mb-0" style="font-size: 0.9rem;">1.00 ms</span>
                                     </div>
-                                </div>
-                                <div class="thresholdInfoText mt-2 pt-2 border-top text-muted text-center" style="font-size: 0.75rem;">
-                                    Signal goes HIGH at count: <strong>0</strong> and switches LOW at compare value: <strong>512</strong>
+                                    <div class="col-6">
+                                        <span class="d-block text-muted small text-uppercase" style="font-size: 0.7rem;">Pulse Width</span>
+                                        <span class="onTimeDisplay fw-bold text-dark mb-0" style="font-size: 0.9rem;">0.50 ms</span>
+                                    </div>
                                 </div>
                             </div>
+
+                            <details class="mt-3">
+                                <summary class="small fw-bold text-uppercase text-secondary" style="cursor: pointer;">Advanced: Timer Resolution</summary>
+                                <div class="mt-2">
+                                    <select class="bitWidthSelect form-select form-select-sm shadow-none">
+                                        <option value="8">8-bit (0 - 255 steps)</option>
+                                        <option value="10" selected>10-bit (0 - 1023 steps)</option>
+                                        <option value="12">12-bit (0 - 4095 steps)</option>
+                                        <option value="16">16-bit (0 - 65535 steps)</option>
+                                    </select>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-6">
+                                            <div class="p-2 bg-light rounded-3 border text-center">
+                                                <span class="d-block text-muted small text-uppercase" style="font-size: 0.68rem;">Max Steps (TOP)</span>
+                                                <span class="maxStepsDisplay fw-bold text-dark" style="font-size: 0.9rem;">1023</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="p-2 bg-light rounded-3 border text-center">
+                                                <span class="d-block text-muted small text-uppercase" style="font-size: 0.68rem;">Compare Value</span>
+                                                <span class="compareValueDisplay fw-bold text-dark" style="font-size: 0.9rem;">512</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
                         </div>
 
                         <!-- Visualization Column -->
@@ -74,11 +86,6 @@ class PwmSimulator {
                                 <canvas class="pwmCanvas w-100 h-100 display-block"></canvas>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center mt-2 text-muted small px-1" style="font-size: 0.8rem;">
-                                <span>● HIGH Level</span>
-                                <span>● LOW Level</span>
-                                <span class="onTimeDisplay">High Time: 0.50 ms</span>
-                            </div>
                         </div>
 
                     </div>
@@ -98,9 +105,9 @@ class PwmSimulator {
         const freqValueDisplay = root.querySelector('.freqValueDisplay');
         const dutyValueDisplay = root.querySelector('.dutyValueDisplay');
         const maxStepsDisplay = root.querySelector('.maxStepsDisplay');
+        const compareValueDisplay = root.querySelector('.compareValueDisplay');
         const periodDisplay = root.querySelector('.periodDisplay');
         const onTimeDisplay = root.querySelector('.onTimeDisplay');
-        const thresholdInfoText = root.querySelector('.thresholdInfoText');
 
         const canvas = root.querySelector('.pwmCanvas');
         const ctx = canvas.getContext('2d');
@@ -127,9 +134,9 @@ class PwmSimulator {
             freqValueDisplay.textContent = frequency >= 1000 ? (frequency / 1000).toFixed(1) + ' kHz' : frequency + ' Hz';
             dutyValueDisplay.textContent = dutyCycle + '%';
             maxStepsDisplay.textContent = maxSteps.toLocaleString();
+            compareValueDisplay.textContent = compareValue.toLocaleString();
             periodDisplay.textContent = formatTime(period);
-            onTimeDisplay.textContent = `High Time: ${formatTime(highTime)}`;
-            thresholdInfoText.innerHTML = `Signal goes HIGH at count: <strong>0</strong> and switches LOW at compare value: <strong>${compareValue.toLocaleString()}</strong>`;
+            onTimeDisplay.textContent = formatTime(highTime);
         };
 
         const renderLoop = (currentTime) => {
@@ -166,8 +173,16 @@ class PwmSimulator {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            const windowTime = 0.002;
-            const period = 1 / frequency;
+            const visualFrequency = Math.max(frequency, 400);
+            const period = 1 / visualFrequency;
+            let visiblePeriods = 1.3;
+            if (plotWidth >= 520) {
+                visiblePeriods = 1.5;
+            }
+            if (plotWidth >= 860) {
+                visiblePeriods = 2;
+            }
+            const windowTime = period * visiblePeriods;
             const cycleWidth = (period / windowTime) * plotWidth;
 
             const elapsedSec = (currentTime - startTime) * 0.001;
@@ -179,39 +194,62 @@ class PwmSimulator {
             ctx.lineJoin = 'round';
             ctx.beginPath();
 
+            if (dutyCycle <= 0) {
+                ctx.moveTo(padX, lowY);
+                ctx.lineTo(width - padX, lowY);
+                ctx.stroke();
+                ctx.restore();
+                requestAnimationFrame(renderLoop);
+                return;
+            }
+
+            if (dutyCycle >= 1) {
+                ctx.moveTo(padX, highY);
+                ctx.lineTo(width - padX, highY);
+                ctx.stroke();
+                ctx.restore();
+                requestAnimationFrame(renderLoop);
+                return;
+            }
+
             let startX = padX - offset - cycleWidth;
             const limitX = width - padX;
+            let hasVisibleSegment = false;
 
-            ctx.moveTo(padX, lowY);
+            const drawHorizontalSegment = (segmentStart, segmentEnd, y) => {
+                if (segmentEnd <= padX || segmentStart >= limitX) {
+                    return;
+                }
+
+                const drawStartX = Math.max(segmentStart, padX);
+                const drawEndX = Math.min(segmentEnd, limitX);
+
+                if (!hasVisibleSegment) {
+                    ctx.moveTo(drawStartX, y);
+                    hasVisibleSegment = true;
+                } else {
+                    ctx.lineTo(drawStartX, y);
+                }
+
+                ctx.lineTo(drawEndX, y);
+            };
 
             while (startX < width + cycleWidth) {
                 const activeWidth = cycleWidth * dutyCycle;
                 const lowWidth = cycleWidth - activeWidth;
 
-                let nextLowEnd = startX + lowWidth;
-                if (nextLowEnd > padX && startX < limitX) {
-                    let drawStartX = Math.max(startX, padX);
-                    let drawEndX = Math.min(nextLowEnd, limitX);
-                    if (drawStartX === padX) {
-                        ctx.moveTo(drawStartX, lowY);
-                    } else {
-                        ctx.lineTo(drawStartX, lowY);
-                    }
-                    ctx.lineTo(drawEndX, lowY);
-                }
+                const nextLowEnd = startX + lowWidth;
+                drawHorizontalSegment(startX, nextLowEnd, lowY);
                 startX = nextLowEnd;
 
-                let newHighEnd = startX + activeWidth;
-                if (newHighEnd > padX && startX < limitX) {
-                    let drawStartX = Math.max(startX, padX);
-                    let drawEndX = Math.min(newHighEnd, limitX);
-                    ctx.lineTo(drawStartX, highY);
-                    ctx.lineTo(drawEndX, highY);
-                }
+                const newHighEnd = startX + activeWidth;
+                drawHorizontalSegment(startX, newHighEnd, highY);
                 startX = newHighEnd;
             }
 
-            ctx.stroke();
+            if (hasVisibleSegment) {
+                ctx.stroke();
+            }
             ctx.restore();
 
             requestAnimationFrame(renderLoop);
