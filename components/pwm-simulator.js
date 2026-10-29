@@ -129,6 +129,13 @@ class PwmSimulator {
             return (seconds * 1e9).toFixed(2) + ' ns';
         };
 
+        const getScrollSpeedPixelsPerSec = (frequency) => {
+            const minVisualFrequency = 400;
+            const baseSpeedAtMinFrequency = 40;
+            const effectiveFrequency = Math.max(frequency, minVisualFrequency);
+            return baseSpeedAtMinFrequency * (effectiveFrequency / minVisualFrequency);
+        };
+
         const updateMetricsText = () => {
             const bitWidth = parseInt(bitWidthSelect.value);
             const maxSteps = Math.pow(2, bitWidth) - 1;
@@ -194,7 +201,7 @@ class PwmSimulator {
             const cycleWidth = (period / windowTime) * plotWidth;
 
             const elapsedSec = (currentTime - startTime) * 0.001;
-            const scrollSpeedPixelsPerSec = 40;
+            const scrollSpeedPixelsPerSec = getScrollSpeedPixelsPerSec(frequency);
             const animatedOffset = (elapsedSec * scrollSpeedPixelsPerSec) % cycleWidth;
             const offset = isFrozen ? frozenOffset : animatedOffset;
 
@@ -291,7 +298,7 @@ class PwmSimulator {
                 const windowTime = period * visiblePeriods;
                 const cycleWidth = (period / windowTime) * plotWidth;
                 const elapsedSec = (performance.now() - startTime) * 0.001;
-                const scrollSpeedPixelsPerSec = 40;
+                const scrollSpeedPixelsPerSec = getScrollSpeedPixelsPerSec(frequency);
                 frozenOffset = (elapsedSec * scrollSpeedPixelsPerSec) % cycleWidth;
                 freezeWaveBtn.textContent = 'Resume';
                 waveStatusBadge.textContent = 'Frozen Waveform';
