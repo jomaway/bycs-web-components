@@ -79,7 +79,10 @@ class PwmSimulator {
                         <div class="col-lg-7 ps-lg-4 mt-4 mt-lg-0">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h4 class="h6 fw-semibold text-dark mb-0">Signal Output</h4>
-                                <span class="badge bg-danger bg-opacity-10 text-danger px-2 py-1" style="font-size: 0.75rem;">Live Moving Waveform</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="waveStatusBadge badge bg-danger bg-opacity-10 text-danger px-2 py-1" style="font-size: 0.75rem;">Live Moving Waveform</span>
+                                    <button type="button" class="freezeWaveBtn btn btn-sm btn-outline-secondary" style="font-size: 0.72rem;">Freeze</button>
+                                </div>
                             </div>
 
                             <div class="rounded-4 p-2 shadow-inner position-relative overflow-hidden border" style="height: 220px; background-color: #0f172a; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 20px 20px;">
@@ -108,11 +111,16 @@ class PwmSimulator {
         const compareValueDisplay = root.querySelector('.compareValueDisplay');
         const periodDisplay = root.querySelector('.periodDisplay');
         const onTimeDisplay = root.querySelector('.onTimeDisplay');
+        const freezeWaveBtn = root.querySelector('.freezeWaveBtn');
+        const waveStatusBadge = root.querySelector('.waveStatusBadge');
 
         const canvas = root.querySelector('.pwmCanvas');
         const ctx = canvas.getContext('2d');
 
         let startTime = performance.now();
+        let isFrozen = false;
+        let frozenOffset = 0;
+        let freezeStartedAt = 0;
 
         const formatTime = (seconds) => {
             if (seconds >= 1) return (seconds).toFixed(2) + ' s';
@@ -187,7 +195,8 @@ class PwmSimulator {
 
             const elapsedSec = (currentTime - startTime) * 0.001;
             const scrollSpeedPixelsPerSec = 40;
-            const offset = (elapsedSec * scrollSpeedPixelsPerSec) % cycleWidth;
+            const animatedOffset = (elapsedSec * scrollSpeedPixelsPerSec) % cycleWidth;
+            const offset = isFrozen ? frozenOffset : animatedOffset;
 
             ctx.strokeStyle = '#38bdf8';
             ctx.lineWidth = 3;
@@ -258,6 +267,45 @@ class PwmSimulator {
         bitWidthSelect.addEventListener('change', updateMetricsText);
         freqRange.addEventListener('input', updateMetricsText);
         dutyRange.addEventListener('input', updateMetricsText);
+        freezeWaveBtn.addEventListener('click', () => {
+            isFrozen = !isFrozen;
+
+            if (isFrozen) {
+                freezeStartedAt = performance.now();
+                const frequency = parseFloat(freqRange.value);
+                const visualFrequency = Math.max(frequency, 400);
+                const period = 1 / visualFrequency;
+
+                const width = canvas.clientWidth || 400;
+                const padX = 10;
+                const plotWidth = width - padX * 2;
+
+                let visiblePeriods = 1.3;
+                if (plotWidth >= 520) {
+                    visiblePeriods = 1.5;
+                }
+                if (plotWidth >= 860) {
+                    visiblePeriods = 2;
+                }
+
+                const windowTime = period * visiblePeriods;
+                const cycleWidth = (period / windowTime) * plotWidth;
+                const elapsedSec = (performance.now() - startTime) * 0.001;
+                const scrollSpeedPixelsPerSec = 40;
+                frozenOffset = (elapsedSec * scrollSpeedPixelsPerSec) % cycleWidth;
+                freezeWaveBtn.textContent = 'Resume';
+                waveStatusBadge.textContent = 'Frozen Waveform';
+                waveStatusBadge.classList.remove('bg-danger', 'text-danger', 'bg-opacity-10');
+                waveStatusBadge.classList.add('bg-secondary', 'text-white');
+            } else {
+                const pausedDuration = performance.now() - freezeStartedAt;
+                startTime += pausedDuration;
+                freezeWaveBtn.textContent = 'Freeze';
+                waveStatusBadge.textContent = 'Live Moving Waveform';
+                waveStatusBadge.classList.remove('bg-secondary', 'text-white');
+                waveStatusBadge.classList.add('bg-danger', 'text-danger', 'bg-opacity-10');
+            }
+        });
 
         updateMetricsText();
         requestAnimationFrame(renderLoop);
